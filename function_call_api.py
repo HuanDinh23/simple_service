@@ -36,11 +36,11 @@ class Content(BaseModel):
 async def func(content: Content):
     content = content.content
     service_provided = meet_caller(content)
-    return {"service provided": service_provided}
+    return {"response": service_provided}
 
 
 def local_function(content: str):
-    logger.info(f"logger info"
+    logger.info(f"logger info\n"
                 f"local_function called with content: \n{content}")
     return ["General cleaning", "Specialized cleaning"]
 
@@ -63,10 +63,23 @@ def meet_caller(user_prompt: str):
     }
     fist_choice = 0
     message = function_caller.choices[fist_choice].message
-    function_called = message.function_call.name
-    function_called = function_maper.get(function_called, None)
+    function_called = message.function_call
     if function_called is None:
         return
+    function_called = function_maper.get(function_called.name, None)
     service_provided = function_called(user_prompt)
-    return service_provided
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system",
+             "content": f"You answer the user's question with the `information`, "
+                        f"say less than 3 sentence, and simplify your answer "
+                        f" `information`: `{service_provided}` "},
+            {"role": "user", "content": f"{user_prompt}"}
+        ],
+        seed=42,
+    )
+    response_message = response.choices[fist_choice].message.content
+    return response_message
+
 
